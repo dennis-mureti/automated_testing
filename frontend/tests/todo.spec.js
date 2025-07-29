@@ -48,9 +48,12 @@ test.describe("Todo App Frontend Tests", () => {
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
 
+    // Wait for navigation to main page
+    await page.waitForURL("http://localhost:3000/");
+    
     // Verify successful login by checking todo list appears
     await expect(page.locator("h1")).toHaveText("Todo App");
-    await expect(page.locator(".todo-list li")).toHaveCount(mockTodos.length);
+    await expect(page.locator(".todo-list .todo-item")).toHaveCount(mockTodos.length);
   });
 
   test("should show error with invalid credentials", async ({ page }) => {
@@ -169,6 +172,43 @@ test.describe("Todo App Frontend Tests", () => {
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
+    await page.waitForURL("http://localhost:3000/");
+
+    // Verify initial state
+    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
+    
+    // Create a new todo
+    const newTodoText = "Test todo for integrity check";
+    await page.fill('input[name="todoTitle"]', newTodoText);
+    await page.click('button[type="submit"]');
+    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length + 1);
+    
+    // Toggle the new todo
+    await page.locator('.todo-item:last-child input[type="checkbox"]').click();
+    await expect(page.locator('.todo-item:last-child .todo-text')).toHaveClass(/completed/);
+    
+    // Edit the new todo
+    await page.locator('.todo-item:last-child .todo-edit').click();
+    await page.locator('.todo-item:last-child .todo-text').fill("Updated test todo");
+    await page.locator('.todo-item:last-child .todo-edit').press("Enter");
+    await expect(page.locator('.todo-item:last-child .todo-text')).toContainText("Updated test todo");
+    
+    // Delete the todo
+    await page.locator('.todo-item:last-child .todo-delete').click();
+    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
+    
+    // Verify todos are still intact after all actions
+    await page.reload();
+    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
+    
+    // Verify todos are properly displayed
+    for (const todo of mockTodos) {
+      const todoElement = page.locator(`.todo-item:has-text("${todo.title}")`);
+      await expect(todoElement).toBeVisible();
+      if (todo.completed) {
+        await expect(todoElement.locator('.todo-text')).toHaveClass(/completed/);
+      }
+    }
 
     // Verify initial data
     await expect(page.locator(".todo-list li")).toHaveCount(2);

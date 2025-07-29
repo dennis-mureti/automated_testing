@@ -22,7 +22,7 @@ jobs:
         working-directory: frontend
         run: |
           npx playwright install
-          npx playwright test --headed --project=chromium
+          npx playwright test --project=chromium
         env:
           CI: true
 

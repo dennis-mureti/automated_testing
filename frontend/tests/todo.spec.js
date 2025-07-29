@@ -20,13 +20,13 @@ test.describe("Todo App Frontend Tests", () => {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ token: "fake-jwt-token" }),
+          body: JSON.stringify({ success: true, token: "fake-jwt-token" }),
         });
       } else {
         await route.fulfill({
           status: 401,
           contentType: "application/json",
-          body: JSON.stringify({ error: "Invalid credentials" }),
+          body: JSON.stringify({ success: false, message: "Invalid credentials" }),
         });
       }
     });
@@ -44,22 +44,34 @@ test.describe("Todo App Frontend Tests", () => {
 
   // 1. Login Tests
   test("should login with valid credentials", async ({ page }) => {
+    // Wait for login form to be visible
+    await expect(page.locator(".login-container")).toBeVisible();
+    
+    // Fill login form
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
 
-    // Wait for navigation to main page
+    // Wait for navigation to main page and todos to load
     await page.waitForURL("http://localhost:3000/");
+    await page.waitForSelector(".todo-item");
     
-    // Verify successful login by checking todo list appears
+    // Verify successful login
     await expect(page.locator("h1")).toHaveText("Todo App");
-    await expect(page.locator(".todo-list .todo-item")).toHaveCount(mockTodos.length);
+    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
   });
 
   test("should show error with invalid credentials", async ({ page }) => {
+    // Wait for login form to be visible
+    await expect(page.locator(".login-container")).toBeVisible();
+    
+    // Fill login form with invalid credentials
     await page.fill('input[placeholder="Username"]', "wronguser");
     await page.fill('input[placeholder="Password"]', "wrongpass");
     await page.click('button[type="submit"]');
+    
+    // Wait for error message to appear
+    await page.waitForSelector(".error-message", { state: 'visible' });
 
     // Verify error message appears and stays on login page
     await expect(page.locator(".login-error")).toContainText("Invalid credentials");

@@ -18,10 +18,6 @@ jobs:
         working-directory: frontend
         run: npm install
 
-      - name: Run frontend tests
-        working-directory: frontend
-        run: npx playwright install && npx playwright test
-
       - name: Run Playwright UI tests
         working-directory: frontend
         run: |

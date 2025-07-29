@@ -49,8 +49,8 @@ test.describe("Todo App Frontend Tests", () => {
     await page.click('button[type="submit"]');
 
     // Verify successful login by checking todo list appears
-    await expect(page.locator(".app h1")).toHaveText("Todo App");
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
+    await expect(page.locator("h1")).toHaveText("Todo App");
+    await expect(page.locator(".todo-list li")).toHaveCount(mockTodos.length);
   });
 
   test("should show error with invalid credentials", async ({ page }) => {
@@ -59,8 +59,8 @@ test.describe("Todo App Frontend Tests", () => {
     await page.click('button[type="submit"]');
 
     // Verify error message appears and stays on login page
-    await expect(page.locator(".error-message")).toContainText("Invalid credentials");
-    await expect(page.locator(".login-container h2")).toHaveText("Login"); // Still on login page
+    await expect(page.locator(".login-error")).toContainText("Invalid credentials");
+    await expect(page.locator("h2")).toHaveText("Login"); // Still on login page
   });
 
   // 2. Create New Item
@@ -87,12 +87,12 @@ test.describe("Todo App Frontend Tests", () => {
     });
 
     const newTodoText = "New test todo";
-    await page.fill('input[placeholder="Add a new task..."]', newTodoText);
+    await page.fill('input[name="todoTitle"]', newTodoText);
     await page.click('button[type="submit"]');
 
     // Verify new todo appears in list
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length + 1);
-    await expect(page.locator(".todo-item:last-child .todo-text")).toContainText(newTodoText);
+    await expect(page.locator(".todo-list li")).toHaveCount(mockTodos.length + 1);
+    await expect(page.locator(".todo-list li:last-child span")).toContainText(newTodoText);
   });
 
   // 3. Edit Existing Item
@@ -157,7 +157,7 @@ test.describe("Todo App Frontend Tests", () => {
       .click();
 
     // Verify deletion
-    await expect(page.locator(".todo-item")).toHaveCount(initialCount - 1);
+    await expect(page.locator(".todo-list li")).toHaveCount(initialCount - 1);
     await expect(
       page.locator('.todo-item:has-text("Existing todo 1")')
     ).not.toBeVisible();
@@ -171,9 +171,9 @@ test.describe("Todo App Frontend Tests", () => {
     await page.click('button[type="submit"]');
 
     // Verify initial data
-    await expect(page.locator(".todo-item")).toHaveCount(2);
-    await expect(page.locator(".todo-item").first()).toContainText("Existing todo 1");
-    await expect(page.locator(".todo-item").nth(1)).toContainText("Existing todo 2");
+    await expect(page.locator(".todo-list li")).toHaveCount(2);
+    await expect(page.locator(".todo-list li").first()).toContainText("Existing todo 1");
+    await expect(page.locator(".todo-list li").nth(1)).toContainText("Existing todo 2");
 
     // Toggle completion status
     await page.route("http://localhost:3001/items/1", async (route) => {

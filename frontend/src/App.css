@@ -1,0 +1,145 @@
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.logout-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-button:hover {
+  background-color: #c82333;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #dc3545;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.assertion-message {
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.assertion-success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.assertion-error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.todo-container {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.todo-input-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.todo-input {
+  flex: 1;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.todo-button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.todo-button:hover {
+  background-color: #45a049;
+}
+
+.todo-list {
+  margin-top: 20px;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.todo-item:last-child {
+  border-bottom: none;
+}
+
+.todo-text {
+  flex: 1;
+  margin-left: 10px;
+  font-size: 16px;
+}
+
+.todo-text.completed {
+  text-decoration: line-through;
+  color: #888;
+}
+
+.todo-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: 10px;
+}
+
+.todo-edit {
+  background: none;
+  border: none;
+  color: #007bff;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.todo-edit:hover {
+  color: #0056b3;
+}
+
+.todo-delete {
+  background: none;
+  border: none;
+  color: #dc3545;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.todo-delete:hover {
+  color: #c82333;
+}

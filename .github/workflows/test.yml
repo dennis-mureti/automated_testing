@@ -16,11 +16,16 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm install
+        run: |
+          npm install
+          npm rebuild sqlite3 --build-from-source
 
       - name: Run backend tests
         working-directory: backend
-        run: npm test
+        run: |
+          # Ensure sqlite3 is properly built for the CI environment
+          npm rebuild sqlite3 --build-from-source
+          npm test
         env:
           PORT: 3001
 

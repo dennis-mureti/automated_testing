@@ -5,11 +5,7 @@ on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      sqlite:
-        image: sqlite
-        ports:
-          - 3001:3001
+    services: {}
     steps:
       - uses: actions/checkout@v2
 
@@ -25,6 +21,8 @@ jobs:
       - name: Run backend tests
         working-directory: backend
         run: npm test
+        env:
+          PORT: 3001
 
       - name: Install frontend dependencies
         working-directory: frontend

@@ -10,6 +10,7 @@ test.describe("Todo App Frontend Tests", () => {
   test.beforeEach(async ({ page }) => {
     // Mock API responses before each test
     await page.route("http://localhost:3001/login", async (route) => {
+      console.log("Login API route hit");
       const request = route.request();
       const postData = await request.postDataJSON();
 
@@ -36,6 +37,7 @@ test.describe("Todo App Frontend Tests", () => {
 
     // Mock todos API response
     await page.route("http://localhost:3001/items", async (route) => {
+      console.log("Todos API route hit");
       await route.fulfill({
         status: 200,
         contentType: "application/json",

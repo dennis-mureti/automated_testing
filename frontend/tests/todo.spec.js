@@ -150,13 +150,13 @@ test.describe("Todo App Frontend Tests", () => {
 
     // Wait for navigation and app to load
     await page.waitForURL("http://localhost:3000/");
-    await page.waitFor.locator(".app", { state: "visible" });
+    await page.waitForSelector(".app", { state: "visible" });
 
     // Verify logout button is present (indicating successful login)
     await expect(page.locator(".logout-button")).toBeVisible();
 
     // Wait for todos to load
-    await page.locator(".todo-item").waitFor({
+    await page.waitForSelector(".todo-item", {
       state: "visible",
       timeout: 30000,
     });
@@ -198,13 +198,13 @@ test.describe("Todo App Frontend Tests", () => {
 
     // Wait for navigation and app to load with increased timeout
     await page.waitForURL("http://localhost:3000/", { timeout: 15000 });
-    await page.locator(".app").waitFor({ state: "visible", timeout: 10000 });
+    await page.waitForSelector(".app", { state: "visible", timeout: 10000 });
 
     // Verify logout button is present (indicating successful login)
     await expect(page.locator(".logout-button")).toBeVisible();
 
     // Wait for todos to load with reasonable timeout
-    await page.locator(".todo-item").waitFor({
+    await page.waitForSelector(".todo-item", {
       state: "visible",
       timeout: 10000,
     });
@@ -230,7 +230,7 @@ test.describe("Todo App Frontend Tests", () => {
     await page.locator(".todo-item").first().locator(".todo-delete").click();
 
     // Wait for item to be removed from UI
-    await page.locator(".todo-item").waitFor({ state: "detached" });
+    await page.waitForSelector(".todo-item", { state: "detached" });
     await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length - 1);
   });
 

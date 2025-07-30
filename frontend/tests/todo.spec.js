@@ -153,7 +153,7 @@ test.describe("Todo App Frontend Tests", () => {
     await page.click('button[type="submit"]');
 
     // Wait for navigation and app to load
-    await page.waitForURL("http://localhost:3000/");
+    await page.waitForURL("http://localhost:3001/");
     await page.waitForSelector(".app", { state: "visible" });
 
     // Verify logout button is present (indicating successful login)

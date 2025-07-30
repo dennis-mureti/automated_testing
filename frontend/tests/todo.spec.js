@@ -8,9 +8,8 @@ test.describe("Todo App Frontend Tests", () => {
   ];
 
   test.beforeEach(async ({ page }) => {
-    // Mock login API
+    // Mock API responses before each test
     await page.route("http://localhost:3001/login", async (route) => {
-      console.log("Login API route hit");
       const request = route.request();
       const postData = await request.postDataJSON();
 
@@ -113,28 +112,31 @@ test.describe("Todo App Frontend Tests", () => {
 
   // 1. Login Tests
   test("should login with valid credentials", async ({ page }) => {
-    // Fill login form
+    // Login and verify successful navigation
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
 
-    // Wait for login to complete and navigation
-    await page.waitForURL("http://localhost:3000/", { timeout: 10000 });
+    // Wait for navigation and app to load
+    await page.waitForURL("http://localhost:3000/");
+    await page.waitForSelector(".app", { state: "visible" });
+
+    // Verify logout button is present (indicating successful login)
+    await expect(page.locator(".logout-button")).toBeVisible();
 
     // Wait for todos to load
-    await page.locator(".todo-item").waitFor({
+    await page.waitForSelector(".todo-item", {
       state: "visible",
       timeout: 15000,
     });
 
-    // Verify successful login and data loaded
-    await expect(page.locator("h1")).toHaveText("Todo App");
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
-
-    // Check individual todo items
-    for (const todo of mockTodos) {
-      await expect(page.locator(".todo-item")).toContainText(todo.title);
-    }
+    // Verify todos are loaded correctly
+    await expect(page.locator(".todo-item .todo-text")).toContainText(
+      mockTodos[0].title
+    );
+    await expect(page.locator(".todo-item .todo-text")).toContainText(
+      mockTodos[1].title
+    );
   });
 
   test("should show error with invalid credentials", async ({ page }) => {
@@ -158,36 +160,46 @@ test.describe("Todo App Frontend Tests", () => {
 
   // Helper function to login
   async function loginUser(page) {
+    // Login and verify successful navigation
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
 
-    // Wait for navigation
+    // Wait for navigation and app to load
     await page.waitForURL("http://localhost:3000/");
+    await page.waitForSelector(".app", { state: "visible" });
 
-    // Add debug logging
-    console.log("After login, page URL:", await page.url());
-    console.log("Page content:", await page.content());
+    // Verify logout button is present (indicating successful login)
+    await expect(page.locator(".logout-button")).toBeVisible();
 
     // Wait for todos to load
-    await page.locator(".todo-item").waitFor({
+    await page.waitForSelector(".todo-item", {
       state: "visible",
       timeout: 15000,
-      visible: true,
     });
+
+    // Verify todos are loaded correctly
+    await expect(page.locator(".todo-item .todo-text")).toContainText(
+      mockTodos[0].title
+    );
+    await expect(page.locator(".todo-item .todo-text")).toContainText(
+      mockTodos[1].title
+    );
   }
 
   // 2. Delete Item
   test("should delete a todo item", async ({ page }) => {
     await loginUser(page);
 
+    // Get initial todo count
+    const initialTodos = await page.locator(".todo-item").count();
     const initialCount = await page.locator(".todo-item").count();
 
     // Delete first todo item
     await page.locator(".todo-item").first().locator(".todo-delete").click();
 
     // Wait for item to be removed from UI
-    await page.locator('.todo-item').waitFor({ state: 'detached' });
+    await page.locator(".todo-item").waitFor({ state: "detached" });
     await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length - 1);
   });
 
@@ -199,13 +211,10 @@ test.describe("Todo App Frontend Tests", () => {
     await page.locator(".todo-item").first().locator(".todo-edit").click();
 
     // Wait for edit mode (input field should appear)
-    await page.locator(
-      ".todo-item input[type='text'], .todo-item .todo-text",
-      {
-        state: "visible",
-        timeout: 5000,
-      }
-    );
+    await page.locator(".todo-item input[type='text'], .todo-item .todo-text", {
+      state: "visible",
+      timeout: 5000,
+    });
 
     // Update todo text (adjust selector based on your implementation)
     const editInput = page

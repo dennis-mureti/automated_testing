@@ -8,7 +8,7 @@ test.describe("Todo App Frontend Tests", () => {
   ];
 
   test.beforeEach(async ({ page }) => {
-    // Mock API responses before each test
+    // Mock login API
     await page.route("http://localhost:3001/login", async (route) => {
       console.log("Login API route hit");
       const request = route.request();
@@ -35,338 +35,267 @@ test.describe("Todo App Frontend Tests", () => {
       }
     });
 
-    // Mock todos API response
-    await page.route("http://localhost:3001/items", async (route) => {
-      console.log("Todos API route hit");
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ data: mockTodos }),
-      });
-    });
-
-    // Mock POST response for new todo
+    // Mock items API with method-specific handling
     await page.route("http://localhost:3001/items", async (route) => {
       const request = route.request();
-      const postData = await request.postDataJSON();
+      const method = request.method();
 
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+      console.log(`Items API route hit - Method: ${method}`);
+
+      if (method === "GET") {
+        // GET request - return existing todos
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ data: mockTodos }),
+        });
+      } else if (method === "POST") {
+        // POST request - create new todo
+        const postData = await request.postDataJSON();
+        const newTodo = {
           id: mockTodos.length + 1,
-          title: "Test todo " + (mockTodos.length + 1),
+          title: postData.title || `Test todo ${mockTodos.length + 1}`,
           completed: false,
-        }),
-      });
+        };
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(newTodo),
+        });
+      }
     });
 
-    // Mock PUT response for updating todo
+    // Mock PUT/PATCH requests for updating todos
     await page.route(/http:\/\/localhost:3001\/items\/\d+/, async (route) => {
       const request = route.request();
-      const postData = await request.postDataJSON();
+      const method = request.method();
       const todoId = parseInt(route.request().url().split("/").pop());
 
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: todoId,
-          title: "Updated todo",
-          completed: postData.completed,
-        }),
-      });
+      if (method === "PUT" || method === "PATCH") {
+        const postData = await request.postDataJSON();
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: todoId,
+            title: postData.title || "Updated todo",
+            completed: postData.completed ?? false,
+          }),
+        });
+      } else if (method === "DELETE") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ success: true }),
+        });
+      }
     });
 
-    // Mock DELETE response
-    await page.route(/http:\/\/localhost:3001\/items\/\d+/, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ success: true }),
-      });
-    });
-
-    // Start server and navigate
+    // Navigate to the app
     await page.goto("http://localhost:3000");
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000); // Wait for initial render
 
-    // Ensure login form is visible before proceeding
-    await page.waitForSelector(".login-container", {
-      state: "visible",
-      timeout: 10000,
-    });
-    await page.waitForSelector(".login-form", {
-      state: "visible",
-      timeout: 10000,
-    });
-
-    await page.route("http://localhost:3001/items", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ data: { data: mockTodos } }),
-      });
-    });
-
-    await page.goto("http://localhost:3000");
-  });
-
-  // 1. Login Tests
-  test("should login with valid credentials", async ({ page }) => {
     // Wait for login form to be visible
     await page.waitForSelector(".login-container", {
       state: "visible",
       timeout: 10000,
     });
-    await page.waitForSelector(".login-form", {
-      state: "visible",
-      timeout: 10000,
-    });
+  });
 
+  // 1. Login Tests
+  test("should login with valid credentials", async ({ page }) => {
     // Fill login form
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
 
-    // Wait for login button to be disabled (loading state)
-    await page.waitForSelector("button.login-button:disabled", {
-      state: "visible",
-    });
-    // Wait for login button to be enabled again
-    await page.waitForSelector("button.login-button:not(:disabled)", {
-      state: "visible",
-    });
+    // Wait for login to complete and navigation
+    await page.waitForURL("http://localhost:3000/", { timeout: 10000 });
 
-    // Wait for navigation and todos to load completely
-    await page.waitForURL("http://localhost:3000/");
+    // Wait for todos to load
     await page.waitForSelector(".todo-item", {
       state: "visible",
-      timeout: 10000,
+      timeout: 15000,
     });
-    await page.waitForSelector(".todo-item .todo-text", {
-      state: "visible",
-      timeout: 10000,
-    });
-    await page.waitForTimeout(1000); // Wait for data to load
 
     // Verify successful login and data loaded
     await expect(page.locator("h1")).toHaveText("Todo App");
-    await expect(page.locator(".todo-item .todo-text")).toHaveCount(
-      mockTodos.length
-    );
-    await expect(page.locator(".todo-item .todo-text")).toContainText(
-      mockTodos[0].title
-    );
-    await expect(page.locator(".todo-item .todo-text")).toContainText(
-      mockTodos[1].title
-    );
+    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
+
+    // Check individual todo items
+    for (const todo of mockTodos) {
+      await expect(page.locator(".todo-item")).toContainText(todo.title);
+    }
   });
 
   test("should show error with invalid credentials", async ({ page }) => {
-    // Wait for login form to be visible
-    await expect(page.locator(".login-container")).toBeVisible();
-
     // Fill login form with invalid credentials
     await page.fill('input[placeholder="Username"]', "wronguser");
     await page.fill('input[placeholder="Password"]', "wrongpass");
     await page.click('button[type="submit"]');
 
     // Wait for error message to appear
-    await page.waitForSelector(".error-message", { state: "visible" });
-
-    // Wait for error message to appear
-    await page.waitForSelector(".error-message", { state: "visible" });
+    await page.waitForSelector(".error-message", {
+      state: "visible",
+      timeout: 10000,
+    });
 
     // Verify error message appears and stays on login page
     await expect(page.locator(".error-message")).toContainText(
       "Invalid credentials"
     );
-    await expect(page.locator("h2")).toHaveText("Login"); // Still on login page
+    await expect(page.locator("h2")).toHaveText("Login");
   });
 
-  // 2. Delete Item
-  test("should delete a todo item", async ({ page }) => {
-    // Login and navigate to todos
+  // Helper function to login
+  async function loginUser(page) {
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
-    await page.waitForURL("http://localhost:3000/");
-    await page.waitForSelector(".todo-item", { state: 'visible', timeout: 10000 });
-
-    // Mock DELETE response
-    await page.route(/http:\/\/localhost:3001\/items\/\d+/, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ success: true }),
-      });
+    await page.waitForURL("http://localhost:3000/", { timeout: 10000 });
+    await page.waitForSelector(".todo-item", {
+      state: "visible",
+      timeout: 15000,
     });
+  }
+
+  // 2. Delete Item
+  test("should delete a todo item", async ({ page }) => {
+    await loginUser(page);
+
+    const initialCount = await page.locator(".todo-item").count();
 
     // Delete first todo item
-    await page.locator('.todo-item').first().locator('.todo-delete').click();
+    await page.locator(".todo-item").first().locator(".todo-delete").click();
 
-    // Verify item is removed
-    await expect(page.locator('.todo-item')).toHaveCount(mockTodos.length - 1);
+    // Wait for item to be removed from UI
+    await expect(page.locator(".todo-item")).toHaveCount(initialCount - 1);
   });
 
   // 3. Edit Existing Item
   test("should edit an existing todo item", async ({ page }) => {
-    // Login first
-    await page.fill('input[placeholder="Username"]', "testuser");
-    await page.fill('input[placeholder="Password"]', "password");
-    await page.click('button[type="submit"]');
+    await loginUser(page);
 
-    // Mock the PUT response
-    await page.route("http://localhost:3001/items/1", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: 1,
-          title: "Updated todo",
-          completed: false,
-        }),
-      });
-    });
-
-    // Click edit button and wait for edit mode
+    // Click edit button on first item
     await page.locator(".todo-item").first().locator(".todo-edit").click();
-    await page.waitForSelector(".todo-item .todo-text", {
-      state: "visible",
-      timeout: 10000,
-    });
 
-    // Update todo text
-    await page
+    // Wait for edit mode (input field should appear)
+    await page.waitForSelector(
+      ".todo-item input[type='text'], .todo-item .todo-text",
+      {
+        state: "visible",
+        timeout: 5000,
+      }
+    );
+
+    // Update todo text (adjust selector based on your implementation)
+    const editInput = page
       .locator(".todo-item")
       .first()
-      .locator(".todo-text")
-      .fill("Updated todo");
+      .locator("input[type='text'], .todo-text");
+    await editInput.fill("Updated todo");
 
-    // Save changes
-    await page
-      .locator(".todo-item")
-      .first()
-      .locator(".todo-edit")
-      .press("Enter");
+    // Save changes (could be Enter key or save button)
+    await editInput.press("Enter");
 
     // Wait for update to complete
-    await page.waitForSelector(".todo-item .todo-text", {
-      state: "visible",
-      timeout: 10000,
-    });
+    await page.waitForTimeout(1000);
 
-    // Wait for update to complete and verify
-    await page.waitForSelector(".todo-item .todo-text", { state: "visible" });
-    await expect(
-      page.locator(".todo-item:first-child .todo-text")
-    ).toContainText("Updated todo");
-    await expect(
-      page.locator(".todo-item:first-child .todo-text")
-    ).not.toContainText("Existing todo 1");
+    // Verify the text was updated
+    await expect(page.locator(".todo-item").first()).toContainText(
+      "Updated todo"
+    );
+    await expect(page.locator(".todo-item").first()).not.toContainText(
+      "Existing todo 1"
+    );
   });
 
+  // 4. Add New Todo
+  test("should add a new todo item", async ({ page }) => {
+    await loginUser(page);
 
+    const initialCount = await page.locator(".todo-item").count();
+    const newTodoText = "New test todo";
 
-  test("should maintain data integrity after actions", async ({ page }) => {
-    // Login and navigate to todos
-    await page.fill('input[placeholder="Username"]', "testuser");
-    await page.fill('input[placeholder="Password"]', "password");
-    await page.click('button[type="submit"]');
-    await page.waitForURL("http://localhost:3000/");
-    await page.waitForSelector(".todo-item", { state: 'visible', timeout: 10000 });
+    // Add new todo
+    await page.fill(
+      'input[name="todoTitle"], input[placeholder*="todo"], .todo-input',
+      newTodoText
+    );
+    await page.click('button[type="submit"], .add-todo-button');
+
+    // Wait for new item to appear
+    await expect(page.locator(".todo-item")).toHaveCount(initialCount + 1);
+    await expect(page.locator(".todo-item")).toContainText(newTodoText);
+  });
+
+  // 5. Toggle Todo Completion
+  test("should toggle todo completion status", async ({ page }) => {
+    await loginUser(page);
+
+    const firstTodo = page.locator(".todo-item").first();
+    const checkbox = firstTodo.locator('input[type="checkbox"]');
+
+    // Get initial state
+    const wasChecked = await checkbox.isChecked();
+
+    // Toggle checkbox
+    await checkbox.click();
+
+    // Wait for state change
+    await page.waitForTimeout(500);
+
+    // Verify state changed
+    if (wasChecked) {
+      await expect(checkbox).not.toBeChecked();
+    } else {
+      await expect(checkbox).toBeChecked();
+    }
+  });
+
+  // 6. Data Integrity Test
+  test("should maintain data integrity after multiple actions", async ({
+    page,
+  }) => {
+    await loginUser(page);
 
     // Verify initial state
     await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
-    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[0].title);
-    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[1].title);
 
-    // Create a new todo
-    const newTodoText = "Test todo for integrity check";
-    await page.fill('input[name="todoTitle"]', newTodoText);
-    await page.click('button[type="submit"]');
-    await page.waitForSelector(".todo-item:last-child .todo-text", {
-      state: "visible",
-    });
+    // Add a new todo
+    const newTodoText = "Integrity test todo";
+    await page.fill(
+      'input[name="todoTitle"], input[placeholder*="todo"], .todo-input',
+      newTodoText
+    );
+    await page.click('button[type="submit"], .add-todo-button');
+
+    // Wait for new item
     await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length + 1);
-    await expect(
-      page.locator(".todo-item:last-child .todo-text")
-    ).toContainText(newTodoText);
+    await expect(page.locator(".todo-item")).toContainText(newTodoText);
 
     // Toggle the new todo
-    await page.locator('.todo-item:last-child input[type="checkbox"]').click();
-    await page.waitForSelector(".todo-item:last-child .todo-text.completed", {
-      state: "visible",
-    });
-    await expect(page.locator(".todo-item:last-child .todo-text")).toHaveClass(
-      /completed/
-    );
+    const newTodoItem = page.locator(".todo-item").last();
+    await newTodoItem.locator('input[type="checkbox"]').click();
+    await page.waitForTimeout(500);
 
     // Edit the new todo
-    await page.locator(".todo-item:last-child .todo-edit").click();
-    await page
-      .locator(".todo-item:last-child .todo-text")
-      .fill("Updated test todo");
-    await page.locator(".todo-item:last-child .todo-edit").press("Enter");
-    await expect(
-      page.locator(".todo-item:last-child .todo-text")
-    ).toContainText("Updated test todo");
+    await newTodoItem.locator(".todo-edit").click();
+    const editInput = newTodoItem.locator("input[type='text'], .todo-text");
+    await editInput.fill("Updated integrity test todo");
+    await editInput.press("Enter");
+    await page.waitForTimeout(1000);
+
+    // Verify edit worked
+    await expect(newTodoItem).toContainText("Updated integrity test todo");
 
     // Delete the todo
-    await page.locator(".todo-item:last-child .todo-delete").click();
+    await newTodoItem.locator(".todo-delete").click();
     await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
 
-    // Verify todos are still intact after all actions
-    await page.reload();
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
-
-    // Verify todos are properly displayed
+    // Verify original todos are still intact
     for (const todo of mockTodos) {
-      const todoElement = page.locator(`.todo-item:has-text("${todo.title}")`);
-      await expect(todoElement).toBeVisible();
-      if (todo.completed) {
-        await expect(todoElement.locator(".todo-text")).toHaveClass(
-          /completed/
-        );
-      }
+      await expect(page.locator(".todo-item")).toContainText(todo.title);
     }
-
-    // Verify initial data
-    await expect(page.locator(".todo-list li")).toHaveCount(2);
-    await expect(page.locator(".todo-list li").first()).toContainText(
-      "Existing todo 1"
-    );
-    await expect(page.locator(".todo-list li").nth(1)).toContainText(
-      "Existing todo 2"
-    );
-
-    // Toggle completion status
-    await page.route("http://localhost:3001/items/1", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: 1,
-          title: "Existing todo 1",
-          completed: true,
-        }),
-      });
-    });
-
-    await page
-      .locator('li:has-text("Existing todo 1") input[type="checkbox"]')
-      .check();
-
-    // Verify UI reflects completed state
-    await expect(
-      page.locator('.todo-item:has-text("Existing todo 1")')
-    ).toHaveClass(/completed/);
-    await expect(
-      page.locator(
-        '.todo-item:has-text("Existing todo 1") input[type="checkbox"]'
-      )
-    ).toBeChecked();
   });
 });

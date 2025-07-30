@@ -52,13 +52,16 @@ test.describe("Todo App Frontend Tests", () => {
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
 
-    // Wait for navigation to main page and todos to load
+    // Wait for navigation and todos to load completely
     await page.waitForURL("http://localhost:3000/");
-    await page.waitForSelector(".todo-item");
+    await page.waitForSelector(".todo-item", { state: 'visible' });
+    await page.waitForSelector(".todo-item .todo-text", { state: 'visible' });
     
-    // Verify successful login
+    // Verify successful login and data loaded
     await expect(page.locator("h1")).toHaveText("Todo App");
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
+    await expect(page.locator(".todo-item .todo-text")).toHaveCount(mockTodos.length);
+    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[0].title);
+    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[1].title);
   });
 
   test("should show error with invalid credentials", async ({ page }) => {
@@ -105,9 +108,11 @@ test.describe("Todo App Frontend Tests", () => {
     await page.fill('input[name="todoTitle"]', newTodoText);
     await page.click('button[type="submit"]');
 
-    // Verify new todo appears in list
-    await expect(page.locator(".todo-list li")).toHaveCount(mockTodos.length + 1);
-    await expect(page.locator(".todo-list li:last-child span")).toContainText(newTodoText);
+    // Wait for new todo to appear and verify
+    await page.waitForSelector('.todo-item .todo-text', { state: 'visible' });
+    await expect(page.locator('.todo-item')).toHaveCount(mockTodos.length + 1);
+    await expect(page.locator('.todo-item:last-child .todo-text')).toContainText(newTodoText);
+    await expect(page.locator('.todo-item:last-child .todo-text')).not.toHaveClass(/completed/);
   });
 
   // 3. Edit Existing Item
@@ -144,9 +149,10 @@ test.describe("Todo App Frontend Tests", () => {
       .locator('.todo-edit')
       .press("Enter");
 
-    // Verify update
-    await expect(page.locator(".todo-item")).toContainText("Updated todo");
-    await expect(page.locator(".todo-item")).not.toContainText("Existing todo 1");
+    // Wait for update to complete and verify
+    await page.waitForSelector('.todo-item .todo-text', { state: 'visible' });
+    await expect(page.locator('.todo-item:first-child .todo-text')).toContainText("Updated todo");
+    await expect(page.locator('.todo-item:first-child .todo-text')).not.toContainText("Existing todo 1");
   });
 
   // 4. Delete Item
@@ -171,11 +177,10 @@ test.describe("Todo App Frontend Tests", () => {
       .locator('.todo-delete')
       .click();
 
-    // Verify deletion
-    await expect(page.locator(".todo-list li")).toHaveCount(initialCount - 1);
-    await expect(
-      page.locator('.todo-item:has-text("Existing todo 1")')
-    ).not.toBeVisible();
+    // Wait for deletion to complete and verify
+    await page.waitForSelector('.todo-item', { state: 'visible' });
+    await expect(page.locator('.todo-item')).toHaveCount(initialCount - 1);
+    await expect(page.locator('.todo-item:has-text("Existing todo 1")')).not.toBeVisible();
   });
 
   // 5. Data Assertions
@@ -187,16 +192,22 @@ test.describe("Todo App Frontend Tests", () => {
     await page.waitForURL("http://localhost:3000/");
 
     // Verify initial state
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
+    await page.waitForSelector('.todo-item .todo-text', { state: 'visible' });
+    await expect(page.locator('.todo-item')).toHaveCount(mockTodos.length);
+    await expect(page.locator('.todo-item .todo-text')).toContainText(mockTodos[0].title);
+    await expect(page.locator('.todo-item .todo-text')).toContainText(mockTodos[1].title);
     
     // Create a new todo
     const newTodoText = "Test todo for integrity check";
     await page.fill('input[name="todoTitle"]', newTodoText);
     await page.click('button[type="submit"]');
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length + 1);
+    await page.waitForSelector('.todo-item:last-child .todo-text', { state: 'visible' });
+    await expect(page.locator('.todo-item')).toHaveCount(mockTodos.length + 1);
+    await expect(page.locator('.todo-item:last-child .todo-text')).toContainText(newTodoText);
     
     // Toggle the new todo
     await page.locator('.todo-item:last-child input[type="checkbox"]').click();
+    await page.waitForSelector('.todo-item:last-child .todo-text.completed', { state: 'visible' });
     await expect(page.locator('.todo-item:last-child .todo-text')).toHaveClass(/completed/);
     
     // Edit the new todo

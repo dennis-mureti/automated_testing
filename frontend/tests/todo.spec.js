@@ -306,43 +306,17 @@ test.describe("Todo App Frontend Tests", () => {
 
   // 5. Data Assertions
   test("should maintain data integrity after actions", async ({ page }) => {
-    // Login first
+    // Login and navigate to todos
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
-
-    // Wait for login button to be disabled (loading state)
-    await page.waitForSelector("button.login-button:disabled", {
-      state: "visible",
-    });
-    // Wait for login button to be enabled again
-    await page.waitForSelector("button.login-button:not(:disabled)", {
-      state: "visible",
-    });
-
     await page.waitForURL("http://localhost:3000/");
-    await page.waitForSelector(".todo-item", {
-      state: "visible",
-      timeout: 10000,
-    });
-    await page.waitForSelector(".todo-item .todo-text", {
-      state: "visible",
-      timeout: 10000,
-    });
-    await page.waitForTimeout(1000); // Wait for data to load
+    await page.waitForSelector(".todo-item", { state: 'visible', timeout: 10000 });
 
-    // Wait for initial state to load
-    await page.waitForSelector(".todo-item .todo-text", {
-      state: "visible",
-      timeout: 10000,
-    });
+    // Verify initial state
     await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
-    await expect(page.locator(".todo-item .todo-text")).toContainText(
-      mockTodos[0].title
-    );
-    await expect(page.locator(".todo-item .todo-text")).toContainText(
-      mockTodos[1].title
-    );
+    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[0].title);
+    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[1].title);
 
     // Create a new todo
     const newTodoText = "Test todo for integrity check";

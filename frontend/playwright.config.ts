@@ -13,6 +13,13 @@ export default defineConfig({
     headless: process.env.CI === 'true',
   },
 
+  webServer: {
+    command: 'npm start',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+    port: 3000
+  },
+
   projects: [
     {
       name: 'chromium',

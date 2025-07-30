@@ -37,52 +37,53 @@ test.describe("Todo App Frontend Tests", () => {
 
     // Mock items API with method-specific handling
     await page.route("http://localhost:3001/items", async (route) => {
-      const request = route.request();
-      const method = request.method();
-
-      console.log(`Items API route hit - Method: ${method}`);
-
-      if (method === "GET") {
-        // GET request - return existing todos
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ data: mockTodos }),
-        });
-      } else if (method === "POST") {
-        // POST request - create new todo
-        const postData = await request.postDataJSON();
-        const newTodo = {
-          id: mockTodos.length + 1,
-          title: postData.title || `Test todo ${mockTodos.length + 1}`,
-          completed: false,
-        };
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify(newTodo),
-        });
-      }
+      console.log("Todos API route hit");
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { data: mockTodos } }),
+      });
     });
 
-    // Mock PUT/PATCH requests for updating todos
+    // Mock POST response for new todo
+    await page.route("http://localhost:3001/items", async (route) => {
+      const request = route.request();
+      const postData = await request.postDataJSON();
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: mockTodos.length + 1,
+          title: "Test todo " + (mockTodos.length + 1),
+          completed: false,
+        }),
+      });
+    });
+
+    // Mock PUT response for updating todo
+    await page.route(/http:\/\/localhost:3001\/items\/\d+/, async (route) => {
+      const request = route.request();
+      const postData = await request.postDataJSON();
+      const todoId = parseInt(route.request().url().split("/").pop());
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: todoId,
+          title: "Updated todo",
+          completed: postData.completed,
+        }),
+      });
+    });
+
+    // Mock DELETE response for deleting todo
     await page.route(/http:\/\/localhost:3001\/items\/\d+/, async (route) => {
       const request = route.request();
       const method = request.method();
-      const todoId = parseInt(route.request().url().split("/").pop());
 
-      if (method === "PUT" || method === "PATCH") {
-        const postData = await request.postDataJSON();
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            id: todoId,
-            title: postData.title || "Updated todo",
-            completed: postData.completed ?? false,
-          }),
-        });
-      } else if (method === "DELETE") {
+      if (method === "DELETE") {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -169,7 +170,8 @@ test.describe("Todo App Frontend Tests", () => {
     await page.locator(".todo-item").first().locator(".todo-delete").click();
 
     // Wait for item to be removed from UI
-    await expect(page.locator(".todo-item")).toHaveCount(initialCount - 1);
+    await page.waitForSelector('.todo-item', { state: 'detached' });
+    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length - 1);
   });
 
   // 3. Edit Existing Item

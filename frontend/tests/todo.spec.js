@@ -304,7 +304,6 @@ test.describe("Todo App Frontend Tests", () => {
     await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[1].title);
   });
 
-  // 5. Data Assertions
   test("should maintain data integrity after actions", async ({ page }) => {
     // Login and navigate to todos
     await page.fill('input[placeholder="Username"]', "testuser");

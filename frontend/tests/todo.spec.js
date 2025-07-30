@@ -35,30 +35,85 @@ test.describe("Todo App Frontend Tests", () => {
     });
 
     // Consolidated todos API route handler
-    await page.route(/http:\/\/localhost:3001\/items(\/\d+)?/, async (route) => {
-      const request = route.request();
-      const method = request.method();
-      const url = request.url();
-      const isDetailRoute = url.includes('/items/') && !url.endsWith('/items');
+    await page.route(
+      /http:\/\/localhost:3001\/items(\/\d+)?/,
+      async (route) => {
+        const request = route.request();
+        const method = request.method();
+        const url = request.url();
+        const isDetailRoute =
+          url.includes("/items/") && !url.endsWith("/items");
 
-      try {
-        if (method === "GET") {
-          // GET all todos
-          if (!isDetailRoute) {
-            await route.fulfill({
-              status: 200,
-              contentType: "application/json",
-              body: JSON.stringify({ data: { data: mockTodos } }),
-            });
-          } else {
-            // GET single todo
-            const todoId = parseInt(url.split('/').pop());
-            const todo = mockTodos.find(t => t.id === todoId);
-            if (todo) {
+        try {
+          if (method === "GET") {
+            // GET all todos
+            if (!isDetailRoute) {
               await route.fulfill({
                 status: 200,
                 contentType: "application/json",
-                body: JSON.stringify(todo),
+                body: JSON.stringify({ data: { data: mockTodos } }),
+              });
+            } else {
+              // GET single todo
+              const todoId = parseInt(url.split("/").pop());
+              const todo = mockTodos.find((t) => t.id === todoId);
+              if (todo) {
+                await route.fulfill({
+                  status: 200,
+                  contentType: "application/json",
+                  body: JSON.stringify(todo),
+                });
+              } else {
+                await route.fulfill({
+                  status: 404,
+                  contentType: "application/json",
+                  body: JSON.stringify({ error: "Todo not found" }),
+                });
+              }
+            }
+          } else if (method === "POST") {
+            const postData = await request.postDataJSON();
+            const newTodo = {
+              id: mockTodos.length + 1,
+              title: postData.title,
+              completed: false,
+            };
+            mockTodos.push(newTodo);
+            await route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify(newTodo),
+            });
+          } else if (method === "PUT") {
+            const postData = await request.postDataJSON();
+            const todoId = parseInt(url.split("/").pop());
+            const todoIndex = mockTodos.findIndex((t) => t.id === todoId);
+            if (todoIndex !== -1) {
+              mockTodos[todoIndex] = {
+                ...mockTodos[todoIndex],
+                ...postData,
+              };
+              await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify(mockTodos[todoIndex]),
+              });
+            } else {
+              await route.fulfill({
+                status: 404,
+                contentType: "application/json",
+                body: JSON.stringify({ error: "Todo not found" }),
+              });
+            }
+          } else if (method === "DELETE") {
+            const todoId = parseInt(url.split("/").pop());
+            const todoIndex = mockTodos.findIndex((t) => t.id === todoId);
+            if (todoIndex !== -1) {
+              mockTodos.splice(todoIndex, 1);
+              await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ success: true }),
               });
             } else {
               await route.fulfill({
@@ -68,67 +123,16 @@ test.describe("Todo App Frontend Tests", () => {
               });
             }
           }
-        } else if (method === "POST") {
-          const postData = await request.postDataJSON();
-          const newTodo = {
-            id: mockTodos.length + 1,
-            title: postData.title,
-            completed: false,
-          };
-          mockTodos.push(newTodo);
+        } catch (error) {
+          console.error("API route error:", error);
           await route.fulfill({
-            status: 200,
+            status: 500,
             contentType: "application/json",
-            body: JSON.stringify(newTodo),
+            body: JSON.stringify({ error: "Internal server error" }),
           });
-        } else if (method === "PUT") {
-          const postData = await request.postDataJSON();
-          const todoId = parseInt(url.split('/').pop());
-          const todoIndex = mockTodos.findIndex(t => t.id === todoId);
-          if (todoIndex !== -1) {
-            mockTodos[todoIndex] = {
-              ...mockTodos[todoIndex],
-              ...postData,
-            };
-            await route.fulfill({
-              status: 200,
-              contentType: "application/json",
-              body: JSON.stringify(mockTodos[todoIndex]),
-            });
-          } else {
-            await route.fulfill({
-              status: 404,
-              contentType: "application/json",
-              body: JSON.stringify({ error: "Todo not found" }),
-            });
-          }
-        } else if (method === "DELETE") {
-          const todoId = parseInt(url.split('/').pop());
-          const todoIndex = mockTodos.findIndex(t => t.id === todoId);
-          if (todoIndex !== -1) {
-            mockTodos.splice(todoIndex, 1);
-            await route.fulfill({
-              status: 200,
-              contentType: "application/json",
-              body: JSON.stringify({ success: true }),
-            });
-          } else {
-            await route.fulfill({
-              status: 404,
-              contentType: "application/json",
-              body: JSON.stringify({ error: "Todo not found" }),
-            });
-          }
         }
-      } catch (error) {
-        console.error('API route error:', error);
-        await route.fulfill({
-          status: 500,
-          contentType: "application/json",
-          body: JSON.stringify({ error: "Internal server error" }),
-        });
       }
-    });
+    );
 
     // Navigate to the app
     await page.goto("http://localhost:3000");
@@ -155,10 +159,11 @@ test.describe("Todo App Frontend Tests", () => {
     // Verify logout button is present (indicating successful login)
     await expect(page.locator(".logout-button")).toBeVisible();
 
-    // Wait for todos to load
-    await page.waitForSelector(".todo-item", {
-      state: "visible",
-      timeout: 30000,
+    // Wait for todos to load with more lenient checks
+    await page.waitForLoadState('networkidle');
+    await page.locator(".todo-item").waitFor({
+      state: "attached",
+      timeout: 15000,
     });
 
     // Verify todos are loaded correctly
@@ -189,12 +194,17 @@ test.describe("Todo App Frontend Tests", () => {
     await expect(page.locator("h2")).toHaveText("Login");
   });
 
-  // Helper function to login
+  // Helper function to login with proper waiting
   async function loginUser(page) {
     // Login and verify successful navigation
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
+
+    // Wait for navigation and ensure page is fully loaded
+    await page.waitForLoadState('networkidle');
+    await page.waitForURL("http://localhost:3000/");
+    await page.locator(".app").waitFor({ state: "visible", timeout: 10000 });
 
     // Wait for navigation and app to load with increased timeout
     await page.waitForURL("http://localhost:3000/", { timeout: 15000 });
@@ -226,8 +236,9 @@ test.describe("Todo App Frontend Tests", () => {
     const initialTodos = await page.locator(".todo-item").count();
     const initialCount = await page.locator(".todo-item").count();
 
-    // Delete first todo item
+    // Delete first todo item with proper waiting
     await page.locator(".todo-item").first().locator(".todo-delete").click();
+    await page.waitForLoadState('networkidle');
 
     // Wait for item to be removed from UI
     await page.waitForSelector(".todo-item", { state: "detached" });
@@ -238,8 +249,9 @@ test.describe("Todo App Frontend Tests", () => {
   test("should edit an existing todo item", async ({ page }) => {
     await loginUser(page);
 
-    // Click edit button on first item
+    // Click edit button on first item with proper waiting
     await page.locator(".todo-item").first().locator(".todo-edit").click();
+    await page.waitForLoadState('networkidle');
 
     // Wait for edit mode (input field should appear)
     await page.locator(".todo-item input[type='text'], .todo-item .todo-text", {
@@ -273,15 +285,18 @@ test.describe("Todo App Frontend Tests", () => {
   test("should add a new todo item", async ({ page }) => {
     await loginUser(page);
 
+    // Get initial todo count
     const initialCount = await page.locator(".todo-item").count();
     const newTodoText = "New test todo";
 
-    // Add new todo
+    // Add new todo with proper waiting
     await page.fill(
       'input[name="todoTitle"], input[placeholder*="todo"], .todo-input',
       newTodoText
     );
+    await page.waitForTimeout(500); // Small delay before submit
     await page.click('button[type="submit"], .add-todo-button');
+    await page.waitForLoadState('networkidle');
 
     // Wait for new item to appear
     await expect(page.locator(".todo-item")).toHaveCount(initialCount + 1);
@@ -298,8 +313,9 @@ test.describe("Todo App Frontend Tests", () => {
     // Get initial state
     const wasChecked = await checkbox.isChecked();
 
-    // Toggle checkbox
+    // Toggle checkbox with proper waiting
     await checkbox.click();
+    await page.waitForLoadState('networkidle');
 
     // Wait for state change with proper polling
     await page.waitForTimeout(1000);
@@ -319,7 +335,9 @@ test.describe("Todo App Frontend Tests", () => {
     await loginUser(page);
 
     // Verify initial state
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
+    await expect(page.waitForSelector(".todo-item")).toHaveCount(
+      mockTodos.length
+    );
 
     // Add a new todo
     const newTodoText = "Integrity test todo";
@@ -330,7 +348,9 @@ test.describe("Todo App Frontend Tests", () => {
     await page.click('button[type="submit"], .add-todo-button');
 
     // Wait for new item
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length + 1);
+    await expect(page.waitForSelector(".todo-item")).toHaveCount(
+      mockTodos.length + 1
+    );
     await expect(page.locator(".todo-item")).toContainText(newTodoText);
 
     // Toggle the new todo

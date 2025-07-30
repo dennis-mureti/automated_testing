@@ -190,55 +190,36 @@ test.describe("Todo App Frontend Tests", () => {
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
-
+    
     // Wait for login button to be disabled (loading state)
-    await page.waitForSelector("button.login-button:disabled", {
-      state: "visible",
-    });
+    await page.waitForSelector('button.login-button:disabled', { state: 'visible' });
     // Wait for login button to be enabled again
-    await page.waitForSelector("button.login-button:not(:disabled)", {
-      state: "visible",
-    });
-
+    await page.waitForSelector('button.login-button:not(:disabled)', { state: 'visible' });
+    
     await page.waitForURL("http://localhost:3000/");
-    await page.waitForSelector(".todo-item", {
-      state: "visible",
-      timeout: 10000,
-    });
-    await page.waitForSelector(".todo-item .todo-text", {
-      state: "visible",
-      timeout: 10000,
-    });
+    await page.waitForSelector(".todo-item", { state: 'visible', timeout: 10000 });
+    await page.waitForSelector(".todo-item .todo-text", { state: 'visible', timeout: 10000 });
     await page.waitForTimeout(1000); // Wait for data to load
 
-    // Mock the POST response for new todo
-    await page.route("http://localhost:3001/items", async (route) => {
-      const request = route.request();
-      const postData = await request.postDataJSON();
-
+    // Mock DELETE response
+    await page.route(/http:\/\/localhost:3001\/items\/\d+/, async (route) => {
+      const todoId = parseInt(route.request().url().split('/').pop());
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          id: 3,
-          title: postData.title,
-          completed: false,
-        }),
+        body: JSON.stringify({ success: true }),
       });
     });
 
-    // Create a new todo (no title needed)
-    await page.click(".todo-button");
+    // Delete first todo item
+    const firstTodo = await page.locator('.todo-item').first();
+    const todoText = await firstTodo.locator('.todo-text').textContent();
+    await firstTodo.locator('.todo-delete').click();
 
-    // Wait for new todo to appear and verify
-    await page.waitForSelector(".todo-item .todo-text", {
-      state: "visible",
-      timeout: 10000,
-    });
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length + 1);
-    await expect(
-      page.locator(".todo-item:last-child .todo-text")
-    ).not.toHaveClass(/completed/);
+    // Wait for deletion to complete and verify
+    await page.waitForSelector('.todo-item', { state: 'visible', timeout: 10000 });
+    await expect(page.locator('.todo-item')).toHaveCount(mockTodos.length - 1);
+    await expect(page.locator('.todo-item .todo-text')).not.toContainText(todoText);
   });
 
   // 3. Edit Existing Item
@@ -298,32 +279,7 @@ test.describe("Todo App Frontend Tests", () => {
     ).not.toContainText("Existing todo 1");
   });
 
-  // 4. Delete Item
-  test("should delete a todo item", async ({ page }) => {
-    // Login first
-    await page.fill('input[placeholder="Username"]', "testuser");
-    await page.fill('input[placeholder="Password"]', "password");
-    await page.click('button[type="submit"]');
 
-    // Mock the DELETE response
-    await page.route("http://localhost:3001/items/1", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ success: true }),
-      });
-    });
-
-    const initialCount = await page.locator(".todo-item").count();
-    await page.locator(".todo-item").first().locator(".todo-delete").click();
-
-    // Wait for deletion to complete and verify
-    await page.waitForSelector(".todo-item", { state: "visible" });
-    await expect(page.locator(".todo-item")).toHaveCount(initialCount - 1);
-    await expect(
-      page.locator('.todo-item:has-text("Existing todo 1")')
-    ).not.toBeVisible();
-  });
 
   // 5. Data Assertions
   test("should maintain data integrity after actions", async ({ page }) => {

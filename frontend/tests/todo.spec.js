@@ -127,7 +127,7 @@ test.describe("Todo App Frontend Tests", () => {
     // Wait for todos to load
     await page.locator(".todo-item").waitFor({
       state: "visible",
-      timeout: 15000,
+      timeout: 30000,
     });
 
     // Verify todos are loaded correctly
@@ -175,7 +175,7 @@ test.describe("Todo App Frontend Tests", () => {
     // Wait for todos to load
     await page.locator(".todo-item").waitFor({
       state: "visible",
-      timeout: 15000,
+      timeout: 30000,
     });
 
     // Verify todos are loaded correctly

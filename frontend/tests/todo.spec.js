@@ -119,13 +119,13 @@ test.describe("Todo App Frontend Tests", () => {
 
     // Wait for navigation and app to load
     await page.waitForURL("http://localhost:3000/");
-    await page.waitForSelector(".app", { state: "visible" });
+    await page.waitFor.locator(".app", { state: "visible" });
 
     // Verify logout button is present (indicating successful login)
     await expect(page.locator(".logout-button")).toBeVisible();
 
     // Wait for todos to load
-    await page.waitForSelector(".todo-item", {
+    await page.locator(".todo-item").waitFor({
       state: "visible",
       timeout: 15000,
     });
@@ -167,13 +167,13 @@ test.describe("Todo App Frontend Tests", () => {
 
     // Wait for navigation and app to load
     await page.waitForURL("http://localhost:3000/");
-    await page.waitForSelector(".app", { state: "visible" });
+    await page.locator(".app").waitFor({ state: "visible" });
 
     // Verify logout button is present (indicating successful login)
     await expect(page.locator(".logout-button")).toBeVisible();
 
     // Wait for todos to load
-    await page.waitForSelector(".todo-item", {
+    await page.locator(".todo-item").waitFor({
       state: "visible",
       timeout: 15000,
     });

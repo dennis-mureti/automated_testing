@@ -39,7 +39,7 @@ test.describe("Todo App Frontend Tests", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ data: { data: mockTodos } }),
+        body: JSON.stringify({ data: mockTodos }),
       });
     });
 

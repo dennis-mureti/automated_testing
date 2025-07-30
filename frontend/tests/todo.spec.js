@@ -266,43 +266,7 @@ test.describe("Todo App Frontend Tests", () => {
     ).not.toContainText("Existing todo 1");
   });
 
-  // 4. Data Assertions
-  test("should maintain data integrity after actions", async ({ page }) => {
-    // Login and navigate to todos
-    await page.fill('input[placeholder="Username"]', "testuser");
-    await page.fill('input[placeholder="Password"]', "password");
-    await page.click('button[type="submit"]');
-    await page.waitForURL("http://localhost:3000/");
-    await page.waitForSelector(".todo-item", { state: 'visible', timeout: 10000 });
 
-    // Verify initial state
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
-    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[0].title);
-    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[1].title);
-
-    // Create a new todo
-    await page.click(".todo-button");
-    await page.waitForSelector(".todo-item", { state: 'visible', timeout: 10000 });
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length + 1);
-
-    // Toggle the new todo
-    await page.locator('.todo-item:last-child input[type="checkbox"]').click();
-    await expect(page.locator(".todo-item:last-child .todo-text")).toHaveClass(/completed/);
-
-    // Edit the new todo
-    await page.locator(".todo-item:last-child .todo-edit").click();
-    await page.locator(".todo-item:last-child .todo-text").fill("Updated test todo");
-    await page.locator(".todo-item:last-child .todo-edit").press("Enter");
-    await expect(page.locator(".todo-item:last-child .todo-text")).toContainText("Updated test todo");
-
-    // Delete the todo
-    await page.locator(".todo-item:last-child .todo-delete").click();
-    await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length);
-
-    // Verify todos are still intact
-    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[0].title);
-    await expect(page.locator(".todo-item .todo-text")).toContainText(mockTodos[1].title);
-  });
 
   test("should maintain data integrity after actions", async ({ page }) => {
     // Login and navigate to todos

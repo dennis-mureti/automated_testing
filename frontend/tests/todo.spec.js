@@ -35,14 +35,22 @@ test.describe("Todo App Frontend Tests", () => {
       }
     });
 
-    // Mock items API with method-specific handling
+    // Mock todos API response
     await page.route("http://localhost:3001/items", async (route) => {
-      console.log("Todos API route hit");
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ data: { data: mockTodos } }),
-      });
+      const request = route.request();
+      console.log("Todos API route hit", request.method(), request.url());
+
+      if (request.method() === "GET") {
+        // For GET requests, return the mock todos
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ data: { data: mockTodos } }),
+        });
+      } else {
+        // For other requests (POST, PUT, DELETE), let the existing handlers handle them
+        await route.continue();
+      }
     });
 
     // Mock POST response for new todo
@@ -97,7 +105,7 @@ test.describe("Todo App Frontend Tests", () => {
     await page.waitForLoadState("networkidle");
 
     // Wait for login form to be visible
-    await page.waitForSelector(".login-container", {
+    await page.locator(".login-container").waitFor({
       state: "visible",
       timeout: 10000,
     });
@@ -114,7 +122,7 @@ test.describe("Todo App Frontend Tests", () => {
     await page.waitForURL("http://localhost:3000/", { timeout: 10000 });
 
     // Wait for todos to load
-    await page.waitForSelector(".todo-item", {
+    await page.locator(".todo-item").waitFor({
       state: "visible",
       timeout: 15000,
     });
@@ -136,7 +144,7 @@ test.describe("Todo App Frontend Tests", () => {
     await page.click('button[type="submit"]');
 
     // Wait for error message to appear
-    await page.waitForSelector(".error-message", {
+    await page.locator(".error-message").waitFor({
       state: "visible",
       timeout: 10000,
     });
@@ -153,10 +161,19 @@ test.describe("Todo App Frontend Tests", () => {
     await page.fill('input[placeholder="Username"]', "testuser");
     await page.fill('input[placeholder="Password"]', "password");
     await page.click('button[type="submit"]');
-    await page.waitForURL("http://localhost:3000/", { timeout: 10000 });
-    await page.waitForSelector(".todo-item", {
+
+    // Wait for navigation
+    await page.waitForURL("http://localhost:3000/");
+
+    // Add debug logging
+    console.log("After login, page URL:", await page.url());
+    console.log("Page content:", await page.content());
+
+    // Wait for todos to load
+    await page.locator(".todo-item").waitFor({
       state: "visible",
       timeout: 15000,
+      visible: true,
     });
   }
 
@@ -170,7 +187,7 @@ test.describe("Todo App Frontend Tests", () => {
     await page.locator(".todo-item").first().locator(".todo-delete").click();
 
     // Wait for item to be removed from UI
-    await page.waitForSelector('.todo-item', { state: 'detached' });
+    await page.locator('.todo-item').waitFor({ state: 'detached' });
     await expect(page.locator(".todo-item")).toHaveCount(mockTodos.length - 1);
   });
 
@@ -182,7 +199,7 @@ test.describe("Todo App Frontend Tests", () => {
     await page.locator(".todo-item").first().locator(".todo-edit").click();
 
     // Wait for edit mode (input field should appear)
-    await page.waitForSelector(
+    await page.locator(
       ".todo-item input[type='text'], .todo-item .todo-text",
       {
         state: "visible",
